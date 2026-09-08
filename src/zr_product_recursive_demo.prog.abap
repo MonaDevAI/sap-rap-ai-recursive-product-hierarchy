@@ -6,9 +6,21 @@
 *&---------------------------------------------------------------------*
 REPORT zr_product_recursive_demo.
 
-PARAMETERS p_reset TYPE abap_bool AS CHECKBOX DEFAULT abap_true.
+PARAMETERS p_reset TYPE abap_bool AS CHECKBOX DEFAULT abap_false.
 
 START-OF-SELECTION.
+  IF p_reset = abap_true.
+    SELECT SINGLE @abap_true
+      FROM zproduct_hdr_d
+      WHERE productid LIKE 'DEMO_%'
+      INTO @DATA(lv_demo_draft_exists).
+
+    IF lv_demo_draft_exists = abap_true.
+      WRITE: / 'Reset cancelled: discard active DEMO_% drafts before resetting demo data.'.
+      RETURN.
+    ENDIF.
+  ENDIF.
+
   DATA lv_ts TYPE timestampl.
   GET TIME STAMP FIELD lv_ts.
 

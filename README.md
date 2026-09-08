@@ -46,5 +46,9 @@ examples.
 5. Configure the AI destination and authenticated SICF handler only when the
    optional AI extension is required.
 
+The demo report defaults to a non-reset run. Its reset option refuses to
+replace active `DEMO_%` data while a corresponding RAP draft exists, preventing
+stale-draft ETag conflicts.
+
 Review authorization, service exposure, generated suggestions, and target SAP
 release compatibility before production use.
