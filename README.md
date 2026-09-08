@@ -31,6 +31,9 @@ administrator-controlled `ZPRODUCT_HIER_AI_URL` setting or
 Controlled ABAP callers can alternatively provide an HTTPS URL template,
 deployment, model, and runtime-only API key directly to the AI class.
 
+The Fiori elements product list and object page expose **Validate Hierarchy**
+and **Review with AI** instance-action buttons.
+
 See [docs/AI_HIERARCHY.md](docs/AI_HIERARCHY.md) for configuration and request
 examples.
 

@@ -25,6 +25,9 @@ create;
   draft action Resume;
   draft determine action Prepare;
 
+  action validateHierarchy;
+  action reviewHierarchyWithAI;
+
   field ( readonly ) LastChangedAt,
                      LocalLastChangedAt;
 

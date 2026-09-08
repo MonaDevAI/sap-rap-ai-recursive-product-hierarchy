@@ -14,6 +14,8 @@ define behavior for ZC_Product alias Product
   use action Discard;
   use action Resume;
   use action Prepare;
+  use action validateHierarchy;
+  use action reviewHierarchyWithAI;
 
   use association _Hierarchy {
     create;
