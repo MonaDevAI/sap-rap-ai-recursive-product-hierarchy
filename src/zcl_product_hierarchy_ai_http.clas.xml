@@ -7,7 +7,9 @@
     <LANGU>E</LANGU>
     <DESCRIPT>HTTP API for AI product hierarchy assistance</DESCRIPT>
     <CATEGORY>00</CATEGORY>
+    <EXPOSURE>2</EXPOSURE>
     <STATE>1</STATE>
+    <RELEASE>0</RELEASE>
     <CLSCCINCL>X</CLSCCINCL>
     <FIXPT>X</FIXPT>
     <UNICODE>X</UNICODE>
