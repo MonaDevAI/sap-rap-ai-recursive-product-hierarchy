@@ -206,7 +206,8 @@ CLASS zcl_product_hierarchy_ai IMPLEMENTATION.
     ENDIF.
 
     DATA(lv_system_prompt) =
-      `Review a recursive SAP product hierarchy. Return concise advisory text. ` &&
+      `Review a recursive SAP product hierarchy. Return plain text without Markdown, headings, or lists. ` &&
+      `Keep the complete response under 500 characters. ` &&
       `Identify unclear labels, inconsistent hierarchy types, unusual parent-child relationships, ` &&
       `and likely missing business context. Do not approve, persist, or modify data.`.
 

@@ -114,16 +114,43 @@ CLASS lhc_Product IMPLEMENTATION.
         lv_message = ls_ai_result-error_message.
       ENDIF.
 
-      IF strlen( lv_message ) > 220.
-        lv_message = lv_message(220).
-      ENDIF.
+      REPLACE ALL OCCURRENCES OF cl_abap_char_utilities=>cr_lf
+        IN lv_message WITH space.
+      REPLACE ALL OCCURRENCES OF cl_abap_char_utilities=>newline
+        IN lv_message WITH space.
 
-      APPEND INITIAL LINE TO reported-product
-        ASSIGNING FIELD-SYMBOL(<ls_ai_message>).
-      <ls_ai_message>-%tky = ls_product-%tky.
-      <ls_ai_message>-%msg = new_message_with_text(
-        severity = lv_severity
-        text     = lv_message ).
+      DATA lv_offset TYPE i.
+      DATA lv_chunk_length TYPE i.
+      DATA lv_remaining TYPE i.
+      DATA lv_message_chunk TYPE string.
+
+      WHILE lv_offset < strlen( lv_message ).
+        lv_remaining = strlen( lv_message ) - lv_offset.
+        lv_chunk_length = 50.
+        IF lv_remaining < lv_chunk_length.
+          lv_chunk_length = lv_remaining.
+        ENDIF.
+
+        lv_message_chunk = lv_message+lv_offset(lv_chunk_length).
+
+        APPEND INITIAL LINE TO reported-product
+          ASSIGNING FIELD-SYMBOL(<ls_ai_message>).
+        <ls_ai_message>-%tky = ls_product-%tky.
+        <ls_ai_message>-%msg = new_message_with_text(
+          severity = lv_severity
+          text     = lv_message_chunk ).
+
+        lv_offset = lv_offset + lv_chunk_length.
+      ENDWHILE.
+
+      IF lv_message IS INITIAL.
+        APPEND INITIAL LINE TO reported-product
+          ASSIGNING FIELD-SYMBOL(<ls_empty_ai_message>).
+        <ls_empty_ai_message>-%tky = ls_product-%tky.
+        <ls_empty_ai_message>-%msg = new_message_with_text(
+          severity = if_abap_behv_message=>severity-error
+          text     = 'AI service returned an empty response.' ).
+      ENDIF.
     ENDLOOP.
   ENDMETHOD.
 

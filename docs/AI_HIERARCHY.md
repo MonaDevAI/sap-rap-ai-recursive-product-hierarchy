@@ -165,6 +165,11 @@ The product list report and object page expose two instance actions:
 - **Review with AI** validates first, then calls the configured AI endpoint and
   displays the advisory response through the standard Fiori message handling.
 
+RAP free-text messages are limited to approximately 50 characters each. The
+implementation requests a plain-text response of at most 500 characters and
+splits it into ordered message-popover entries so the complete review remains
+visible.
+
 Neither action persists generated content or activates a draft. Select a
 product before invoking an action from the list report. The actions read the
 current RAP transactional state, including hierarchy nodes in the draft.
