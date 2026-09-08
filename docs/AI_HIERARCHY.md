@@ -62,6 +62,34 @@ A URL alone does not solve authentication. For a protected model endpoint,
 prefer OAuth, mutual TLS, or a gateway that securely injects provider
 credentials. Never put API keys in the URL query string.
 
+## Runtime URL, key, model, and deployment
+
+For a controlled ABAP caller, the class also accepts all connection details at
+runtime:
+
+```abap
+DATA(lo_ai) = NEW zcl_product_hierarchy_ai(
+  iv_url =
+    'https://approved-endpoint.example/openai/deployments/{deployment}/chat/completions?api-version=<version>'
+  iv_deployment    = 'approved-deployment'
+  iv_model         = 'approved-model'
+  iv_api_key       = lv_api_key
+  iv_api_key_header = 'api-key' ).
+```
+
+`{deployment}` is replaced only after validating that the deployment contains
+letters, numbers, dots, underscores, or hyphens. The model is added to the JSON
+request body. Supported key headers are `api-key` and `Authorization`; the
+latter is emitted as a Bearer token.
+
+`lv_api_key` must come from a protected runtime source. Do not replace it with a
+literal secret, commit a real key, store a key in `TVARVC`, log it, or return it
+in an HTTP response.
+
+The public HTTP handler intentionally does not accept URL or key fields from
+the inbound request. This prevents server-side request forgery and caller
+controlled credential forwarding.
+
 ## Inbound HTTP interface
 
 Create an authenticated SICF service such as:

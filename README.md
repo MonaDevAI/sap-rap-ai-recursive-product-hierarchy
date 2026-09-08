@@ -28,6 +28,8 @@ generation.
 generic SAP HTTP classes. Credentials and hosts remain in the
 administrator-controlled `ZPRODUCT_HIER_AI_URL` setting or
 `ZPRODUCT_HIER_AI` HTTP destination and are never accepted from callers.
+Controlled ABAP callers can alternatively provide an HTTPS URL template,
+deployment, model, and runtime-only API key directly to the AI class.
 
 See [docs/AI_HIERARCHY.md](docs/AI_HIERARCHY.md) for configuration and request
 examples.

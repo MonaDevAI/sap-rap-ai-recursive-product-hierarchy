@@ -30,7 +30,10 @@ CLASS zcl_product_hierarchy_ai DEFINITION
         iv_destination TYPE rfcdest OPTIONAL
         iv_resource    TYPE string OPTIONAL
         iv_url         TYPE string OPTIONAL
-        iv_model       TYPE string OPTIONAL.
+        iv_model       TYPE string OPTIONAL
+        iv_deployment  TYPE string OPTIONAL
+        iv_api_key     TYPE string OPTIONAL
+        iv_api_key_header TYPE string DEFAULT 'api-key'.
 
     METHODS validate_structure
       IMPORTING
@@ -71,6 +74,9 @@ CLASS zcl_product_hierarchy_ai DEFINITION
     DATA mv_resource TYPE string.
     DATA mv_url TYPE string.
     DATA mv_model TYPE string.
+    DATA mv_deployment TYPE string.
+    DATA mv_api_key TYPE string.
+    DATA mv_api_key_header TYPE string.
 
     METHODS call_model
       IMPORTING
@@ -99,6 +105,9 @@ CLASS zcl_product_hierarchy_ai IMPLEMENTATION.
     mv_resource = iv_resource.
     mv_url = iv_url.
     mv_model = iv_model.
+    mv_deployment = iv_deployment.
+    mv_api_key = iv_api_key.
+    mv_api_key_header = iv_api_key_header.
   ENDMETHOD.
 
   METHOD validate_structure.
@@ -274,13 +283,36 @@ CLASS zcl_product_hierarchy_ai IMPLEMENTATION.
     DATA lo_client TYPE REF TO if_http_client.
 
     IF mv_url IS NOT INITIAL.
-      IF strlen( mv_url ) < 8 OR mv_url(8) <> 'https://'.
+      DATA(lv_effective_url) = mv_url.
+
+      IF mv_deployment IS NOT INITIAL.
+        FIND REGEX '[^A-Za-z0-9._-]' IN mv_deployment.
+        IF sy-subrc = 0.
+          rs_result-error_message =
+            'AI deployment names may contain only letters, numbers, dots, underscores, and hyphens.'.
+          rs_result-status_code = 500.
+          RETURN.
+        ENDIF.
+
+        IF lv_effective_url NS '{deployment}'.
+          rs_result-error_message =
+            'The AI URL must contain {deployment} when a deployment name is supplied.'.
+          rs_result-status_code = 500.
+          RETURN.
+        ENDIF.
+
+        REPLACE ALL OCCURRENCES OF '{deployment}'
+          IN lv_effective_url
+          WITH mv_deployment.
+      ENDIF.
+
+      IF strlen( lv_effective_url ) < 8 OR lv_effective_url(8) <> 'https://'.
         rs_result-error_message = 'Direct AI URLs must use HTTPS.'.
         rs_result-status_code = 500.
         RETURN.
       ENDIF.
 
-      IF mv_url CS '@'.
+      IF lv_effective_url CS '@'.
         rs_result-error_message = 'Direct AI URLs must not contain embedded credentials.'.
         rs_result-status_code = 500.
         RETURN.
@@ -288,7 +320,7 @@ CLASS zcl_product_hierarchy_ai IMPLEMENTATION.
 
       cl_http_client=>create_by_url(
         EXPORTING
-          url                = mv_url
+          url                = lv_effective_url
         IMPORTING
           client             = lo_client
         EXCEPTIONS
@@ -330,6 +362,26 @@ CLASS zcl_product_hierarchy_ai IMPLEMENTATION.
     lo_client->request->set_header_field(
       name  = 'Accept'
       value = 'application/json' ).
+
+    IF mv_api_key IS NOT INITIAL.
+      IF mv_api_key_header <> 'api-key'
+          AND mv_api_key_header <> 'Authorization'.
+        rs_result-error_message =
+          'API key header must be api-key or Authorization.'.
+        rs_result-status_code = 500.
+        lo_client->close( ).
+        RETURN.
+      ENDIF.
+
+      DATA(lv_api_key_value) = mv_api_key.
+      IF mv_api_key_header = 'Authorization'.
+        lv_api_key_value = 'Bearer ' && mv_api_key.
+      ENDIF.
+
+      lo_client->request->set_header_field(
+        name  = mv_api_key_header
+        value = lv_api_key_value ).
+    ENDIF.
 
     DATA(lv_payload) =
       '{"messages":[{"role":"system","content":"' &&
