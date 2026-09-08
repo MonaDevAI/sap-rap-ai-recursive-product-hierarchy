@@ -9,6 +9,7 @@ CLASS zcl_product_hierarchy_ai_http DEFINITION
   PRIVATE SECTION.
     CONSTANTS gc_destination TYPE rfcdest VALUE 'ZPRODUCT_HIER_AI'.
     CONSTANTS gc_resource TYPE string VALUE '/chat/completions'.
+    CONSTANTS gc_url_parameter TYPE tvarvc-name VALUE 'ZPRODUCT_HIER_AI_URL'.
     CONSTANTS gc_max_request_length TYPE i VALUE 32768.
 
     TYPES:
@@ -89,9 +90,16 @@ CLASS zcl_product_hierarchy_ai_http IMPLEMENTATION.
       RETURN.
     ENDIF.
 
+    SELECT SINGLE low
+      FROM tvarvc
+      WHERE name = @gc_url_parameter
+        AND type = 'P'
+      INTO @DATA(lv_ai_url).
+
     DATA(lo_ai) = NEW zcl_product_hierarchy_ai(
       iv_destination = gc_destination
-      iv_resource    = gc_resource ).
+      iv_resource    = gc_resource
+      iv_url         = CONV string( lv_ai_url ) ).
 
     DATA ls_ai_result TYPE zcl_product_hierarchy_ai=>ty_result.
     CASE ls_request-operation.

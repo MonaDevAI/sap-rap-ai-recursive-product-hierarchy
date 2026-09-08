@@ -27,8 +27,9 @@ CLASS zcl_product_hierarchy_ai DEFINITION
 
     METHODS constructor
       IMPORTING
-        iv_destination TYPE rfcdest
-        iv_resource    TYPE string
+        iv_destination TYPE rfcdest OPTIONAL
+        iv_resource    TYPE string OPTIONAL
+        iv_url         TYPE string OPTIONAL
         iv_model       TYPE string OPTIONAL.
 
     METHODS validate_structure
@@ -68,6 +69,7 @@ CLASS zcl_product_hierarchy_ai DEFINITION
 
     DATA mv_destination TYPE rfcdest.
     DATA mv_resource TYPE string.
+    DATA mv_url TYPE string.
     DATA mv_model TYPE string.
 
     METHODS call_model
@@ -95,6 +97,7 @@ CLASS zcl_product_hierarchy_ai IMPLEMENTATION.
   METHOD constructor.
     mv_destination = iv_destination.
     mv_resource = iv_resource.
+    mv_url = iv_url.
     mv_model = iv_model.
   ENDMETHOD.
 
@@ -260,38 +263,65 @@ CLASS zcl_product_hierarchy_ai IMPLEMENTATION.
   ENDMETHOD.
 
   METHOD call_model.
-    IF mv_destination IS INITIAL OR mv_resource IS INITIAL.
+    IF mv_url IS INITIAL
+        AND ( mv_destination IS INITIAL OR mv_resource IS INITIAL ).
       rs_result-error_message =
-        'AI HTTP destination and chat-completions resource must be configured.'.
+        'Configure either an HTTPS AI URL or an HTTP destination and resource.'.
       rs_result-status_code = 500.
       RETURN.
     ENDIF.
 
     DATA lo_client TYPE REF TO if_http_client.
 
-    cl_http_client=>create_by_destination(
-      EXPORTING
-        destination              = mv_destination
-      IMPORTING
-        client                   = lo_client
-      EXCEPTIONS
-        argument_not_found       = 1
-        destination_not_found    = 2
-        destination_no_authority = 3
-        plugin_not_active        = 4
-        internal_error           = 5
-        OTHERS                   = 6 ).
+    IF mv_url IS NOT INITIAL.
+      IF strlen( mv_url ) < 8 OR mv_url(8) <> 'https://'.
+        rs_result-error_message = 'Direct AI URLs must use HTTPS.'.
+        rs_result-status_code = 500.
+        RETURN.
+      ENDIF.
+
+      IF mv_url CS '@'.
+        rs_result-error_message = 'Direct AI URLs must not contain embedded credentials.'.
+        rs_result-status_code = 500.
+        RETURN.
+      ENDIF.
+
+      cl_http_client=>create_by_url(
+        EXPORTING
+          url                = mv_url
+        IMPORTING
+          client             = lo_client
+        EXCEPTIONS
+          argument_not_found = 1
+          plugin_not_active  = 2
+          internal_error     = 3
+          OTHERS             = 4 ).
+    ELSE.
+      cl_http_client=>create_by_destination(
+        EXPORTING
+          destination              = mv_destination
+        IMPORTING
+          client                   = lo_client
+        EXCEPTIONS
+          argument_not_found       = 1
+          destination_not_found    = 2
+          destination_no_authority = 3
+          plugin_not_active        = 4
+          internal_error           = 5
+          OTHERS                   = 6 ).
+    ENDIF.
 
     IF sy-subrc <> 0.
-      rs_result-error_message =
-        |Unable to create AI HTTP client for destination { mv_destination }; return code { sy-subrc }.|.
+      rs_result-error_message = |Unable to create AI HTTP client; return code { sy-subrc }.|.
       rs_result-status_code = 502.
       RETURN.
     ENDIF.
 
-    cl_http_utility=>set_request_uri(
-      request = lo_client->request
-      uri     = mv_resource ).
+    IF mv_url IS INITIAL.
+      cl_http_utility=>set_request_uri(
+        request = lo_client->request
+        uri     = mv_resource ).
+    ENDIF.
 
     lo_client->request->set_method( 'POST' ).
     lo_client->request->set_header_field(

@@ -26,6 +26,7 @@ generation.
 
 `ZCL_PRODUCT_HIERARCHY_AI_HTTP` provides an authenticated JSON API using
 generic SAP HTTP classes. Credentials and hosts remain in the
+administrator-controlled `ZPRODUCT_HIER_AI_URL` setting or
 `ZPRODUCT_HIER_AI` HTTP destination and are never accepted from callers.
 
 See [docs/AI_HIERARCHY.md](docs/AI_HIERARCHY.md) for configuration and request

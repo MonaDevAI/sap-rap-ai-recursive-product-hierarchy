@@ -10,6 +10,7 @@ CLASS ltc_product_hierarchy_ai DEFINITION FINAL FOR TESTING
     METHODS rejects_orphan_parent FOR TESTING.
     METHODS rejects_recursive_cycle FOR TESTING.
     METHODS rejects_duplicate_node FOR TESTING.
+    METHODS rejects_insecure_ai_url FOR TESTING.
 ENDCLASS.
 
 
@@ -72,5 +73,19 @@ CLASS ltc_product_hierarchy_ai IMPLEMENTATION.
 
     cl_abap_unit_assert=>assert_initial( ls_result-success ).
     cl_abap_unit_assert=>assert_equals( act = ls_result-status_code exp = 422 ).
+  ENDMETHOD.
+
+  METHOD rejects_insecure_ai_url.
+    DATA(lo_ai) = NEW zcl_product_hierarchy_ai(
+      iv_url = 'http://example.invalid/chat/completions' ).
+
+    DATA(ls_result) = lo_ai->review_with_ai(
+      VALUE #(
+        product_id = 'P100'
+        nodes = VALUE #(
+          ( node_id = 'N1' hierarchy_type = 'L1' hierarchy_value = 'Food' ) ) ) ).
+
+    cl_abap_unit_assert=>assert_initial( ls_result-success ).
+    cl_abap_unit_assert=>assert_equals( act = ls_result-status_code exp = 500 ).
   ENDMETHOD.
 ENDCLASS.

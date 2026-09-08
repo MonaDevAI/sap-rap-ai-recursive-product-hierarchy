@@ -28,13 +28,39 @@ explicitly accepted before persistence.
 
 ## Outbound configuration
 
-Create an authenticated HTTP destination named `ZPRODUCT_HIER_AI`. Point it to
-an approved gateway implementing the OpenAI-compatible chat-completions
-contract. Configure authentication in the destination or gateway; never place
-keys in ABAP or Git.
+Two outbound connection modes are supported.
+
+### Direct HTTPS URL
+
+Create a `TVARVC` parameter named `ZPRODUCT_HIER_AI_URL` whose low value is the
+complete HTTPS chat-completions URL. The HTTP handler reads this administrator
+controlled value and uses `CL_HTTP_CLIENT=>CREATE_BY_URL`.
+
+Only HTTPS URLs are accepted. The URL is not accepted in the inbound request,
+which prevents callers from using the service for arbitrary server-side
+requests.
+
+Example:
+
+```text
+https://approved-ai-gateway.example/chat/completions
+```
+
+The target certificate chain must be trusted in SAP transaction `STRUST`.
+
+### HTTP destination
+
+If `ZPRODUCT_HIER_AI_URL` is not configured, create an authenticated HTTP
+destination named `ZPRODUCT_HIER_AI`. Point it to an approved gateway
+implementing the OpenAI-compatible chat-completions contract. Configure
+authentication in the destination or gateway; never place keys in ABAP or Git.
 
 The code calls `/chat/completions`. The gateway can map that resource to the
 approved model provider and deployment.
+
+A URL alone does not solve authentication. For a protected model endpoint,
+prefer OAuth, mutual TLS, or a gateway that securely injects provider
+credentials. Never put API keys in the URL query string.
 
 ## Inbound HTTP interface
 
