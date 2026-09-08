@@ -1,0 +1,99 @@
+@Metadata.layer: #CORE
+
+annotate view ZC_ProductHierarchy with
+{
+  @UI.lineItem: [
+    {
+      qualifier: 'HierarchyItems',
+      position: 10,
+      importance: #HIGH,
+      label: 'Hierarchy Type'
+    }
+  ]
+  @UI.identification: [
+    {
+      position: 10,
+      importance: #HIGH,
+      label: 'Hierarchy Type'
+    }
+  ]
+  @UI.selectionField: [{ position: 10 }]
+  @EndUserText.label: 'Hierarchy Type'
+  HierType;
+
+  @UI.lineItem: [
+    {
+      qualifier: 'HierarchyItems',
+      position: 20,
+      importance: #HIGH,
+      label: 'Hierarchy Value'
+    }
+  ]
+  @UI.identification: [
+    {
+      position: 20,
+      importance: #HIGH,
+      label: 'Hierarchy Value'
+    }
+  ]
+  @UI.selectionField: [{ position: 20 }]
+  @EndUserText.label: 'Hierarchy Value'
+  HierValue;
+
+  @UI.lineItem: [
+    {
+      qualifier: 'HierarchyItems',
+      position: 30,
+      importance: #MEDIUM,
+      label: 'Parent Node'
+    }
+  ]
+  @UI.identification: [
+    {
+      position: 30,
+      importance: #MEDIUM,
+      label: 'Parent Node'
+    }
+  ]
+  @UI.textArrangement: #TEXT_ONLY
+  @Consumption.valueHelpDefinition: [{
+    entity: {
+      name:    'ZI_ProducttHierVH',
+      element: 'HierID'
+    },
+    additionalBinding: [{
+      localElement:    'ProductID',
+      element:         'ProductID',
+      usage:           #FILTER_AND_RESULT
+    }]
+  }]
+  @EndUserText.label: 'Parent Node'
+  ParentHierID;
+
+  @UI.lineItem: [
+    {
+      qualifier: 'HierarchyItems',
+      position: 40,
+      importance: #HIGH,
+      label: 'Hierarchy Path'
+    }
+  ]
+  @UI.identification: [
+    {
+      position: 40,
+      importance: #HIGH,
+      label: 'Hierarchy Path'
+    }
+  ]
+  @EndUserText.label: 'Hierarchy Path'
+  HierarchyPath;
+
+  @UI.hidden: true
+  ProductID;
+
+  @UI.hidden: true
+  HierID;
+
+  @UI.hidden: true
+  ParentHierValue;
+}

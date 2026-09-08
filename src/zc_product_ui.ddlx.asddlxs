@@ -1,0 +1,132 @@
+@Metadata.layer: #CORE
+
+@UI: {
+  headerInfo: {
+    typeName:       'Product',
+    typeNamePlural: 'Products',
+    title: {
+      type:  #STANDARD,
+      value: 'ProductName'
+    },
+    description: {
+      value: 'ProductType'
+    },
+    imageUrl: 'ProductImageUrl'
+  },
+
+  presentationVariant: [{
+    sortOrder: [{
+      by:        'ProductName',
+      direction: #ASC
+    }],
+    visualizations: [{
+      type:      #AS_LINEITEM,
+      qualifier: 'Products'
+    }]
+  }]
+}
+
+annotate view ZC_Product with
+{
+  @UI.facet: [
+    {
+      id:       'ProductGeneral',
+      purpose:  #STANDARD,
+      type:     #IDENTIFICATION_REFERENCE,
+      label:    'General Information',
+      position: 10
+    },
+    {
+      id:              'ProductHierarchy',
+      purpose:         #STANDARD,
+      type:            #LINEITEM_REFERENCE,
+      label:           'Product Hierarchy',
+      position:        20,
+      targetElement:   '_Hierarchy',
+      targetQualifier: 'HierarchyItems'
+    }
+  ]
+
+  @UI.lineItem: [
+    {
+      qualifier: 'Products',
+      position: 10,
+      importance: #HIGH,
+      label: 'Product ID'
+    }
+  ]
+  @UI.identification: [
+    {
+      position: 10,
+      importance: #HIGH,
+      label: 'Product ID'
+    }
+  ]
+  @UI.selectionField: [{ position: 10 }]
+  @EndUserText.label: 'Product ID'
+  ProductID;
+
+  @UI.lineItem: [
+    {
+      qualifier: 'Products',
+      position: 20,
+      importance: #HIGH,
+      label: 'Product Name'
+    }
+  ]
+  @UI.identification: [
+    {
+      position: 20,
+      importance: #HIGH,
+      label: 'Product Name'
+    }
+  ]
+  @UI.selectionField: [{ position: 20 }]
+  @EndUserText.label: 'Product Name'
+  ProductName;
+
+  @UI.lineItem: [
+    {
+      qualifier: 'Products',
+      position: 30,
+      importance: #MEDIUM,
+      label: 'Product Type'
+    }
+  ]
+  @UI.identification: [
+    {
+      position: 30,
+      importance: #MEDIUM,
+      label: 'Product Type'
+    }
+  ]
+  @UI.selectionField: [{ position: 30 }]
+  @UI.textArrangement: #TEXT_ONLY
+  @Consumption.valueHelpDefinition: [{
+    entity: {
+      name:    'ZI_Product_B',
+      element: 'ProductType'
+    }
+  }]
+  @EndUserText.label: 'Product Type'
+  ProductType;
+
+  @UI.lineItem: [
+    {
+      qualifier: 'Products',
+      position: 40,
+      importance: #MEDIUM,
+      label: 'Product Image'
+    }
+  ]
+  @UI.identification: [
+    {
+      position: 40,
+      importance: #LOW,
+      label: 'Product Image'
+    }
+  ]
+  
+  @EndUserText.label: 'Product Image'
+  ProductImageUrl;
+}

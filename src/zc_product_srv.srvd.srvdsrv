@@ -1,0 +1,5 @@
+@EndUserText.label: 'Service definition for Product'
+define service ZC_PRODUCT_SRV {
+  expose ZC_Product;
+  expose ZC_ProductHierarchy;
+}

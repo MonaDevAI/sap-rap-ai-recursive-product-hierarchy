@@ -1,0 +1,74 @@
+managed implementation in class zbp_i_product_i unique;
+strict ( 2 );
+with draft;
+
+define behavior for ZI_Product_I alias Product
+persistent table zproduct_hdr
+draft table zproduct_hdr_d
+lock master
+total etag LastChangedAt
+authorization master ( global )
+etag master LocalLastChangedAt
+{
+create;
+  update;
+  delete;
+
+  association _Hierarchy {
+    create;
+    with draft;
+  }
+
+  draft action Edit;
+  draft action Activate optimized;
+  draft action Discard;
+  draft action Resume;
+  draft determine action Prepare;
+
+  field ( readonly ) LastChangedAt,
+                     LocalLastChangedAt;
+
+  mapping for zproduct_hdr
+  {
+    ProductID          = productid;
+    ProductName        = productname;
+    ProductType        = producttype;
+    ProductImageUrl    = productimageurl;
+    LastChangedAt      = lastchangedat;
+    LocalLastChangedAt = locallastchangedat;
+  }
+
+}
+
+define behavior for ZI_ProductHierarchy_I alias Hierarchy
+persistent table zproduct_hier
+draft table zproduct_hier_d
+lock dependent by _Product
+authorization dependent by _Product
+etag master LocalLastChangedAt
+{
+
+  update;
+  delete;
+
+  field ( numbering : managed, readonly ) HierID;
+  field ( readonly ) ProductID,
+                     HierarchyPath,
+                     LastChangedAt,
+                     LocalLastChangedAt;
+
+  association _Product {
+    with draft;
+  }
+
+  mapping for zproduct_hier
+  {
+    HierID             = hierid;
+    ProductID          = productid;
+    ParentHierID       = parenthierid;
+    HierType           = hiertype;
+    HierValue          = hiervalue;
+    LastChangedAt      = lastchangedat;
+    LocalLastChangedAt = locallastchangedat;
+  }
+}
