@@ -26,42 +26,6 @@
   }]
 }
 
-@UI.lineItem: [
-  {
-    qualifier: 'Products',
-    position: 50,
-    importance: #HIGH,
-    type: #FOR_ACTION,
-    dataAction: 'validateHierarchy',
-    label: 'Validate Hierarchy'
-  },
-  {
-    qualifier: 'Products',
-    position: 60,
-    importance: #HIGH,
-    type: #FOR_ACTION,
-    dataAction: 'reviewHierarchyWithAI',
-    label: 'Review with AI'
-  }
-]
-
-@UI.identification: [
-  {
-    position: 50,
-    importance: #HIGH,
-    type: #FOR_ACTION,
-    dataAction: 'validateHierarchy',
-    label: 'Validate Hierarchy'
-  },
-  {
-    position: 60,
-    importance: #HIGH,
-    type: #FOR_ACTION,
-    dataAction: 'reviewHierarchyWithAI',
-    label: 'Review with AI'
-  }
-]
-
 annotate view ZC_Product with
 {
   @UI.facet: [
@@ -89,6 +53,22 @@ annotate view ZC_Product with
       position: 10,
       importance: #HIGH,
       label: 'Product ID'
+    },
+    {
+      qualifier: 'Products',
+      position: 50,
+      importance: #HIGH,
+      type: #FOR_ACTION,
+      dataAction: 'validateHierarchy',
+      label: 'Validate Hierarchy'
+    },
+    {
+      qualifier: 'Products',
+      position: 60,
+      importance: #HIGH,
+      type: #FOR_ACTION,
+      dataAction: 'reviewHierarchyWithAI',
+      label: 'Review with AI'
     }
   ]
   @UI.identification: [
@@ -96,6 +76,20 @@ annotate view ZC_Product with
       position: 10,
       importance: #HIGH,
       label: 'Product ID'
+    },
+    {
+      position: 50,
+      importance: #HIGH,
+      type: #FOR_ACTION,
+      dataAction: 'validateHierarchy',
+      label: 'Validate Hierarchy'
+    },
+    {
+      position: 60,
+      importance: #HIGH,
+      type: #FOR_ACTION,
+      dataAction: 'reviewHierarchyWithAI',
+      label: 'Review with AI'
     }
   ]
   @UI.selectionField: [{ position: 10 }]
