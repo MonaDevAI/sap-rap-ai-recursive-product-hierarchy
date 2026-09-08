@@ -38,7 +38,9 @@ CLASS lhc_Product IMPLEMENTATION.
         WHERE ProductID = ls_product-ProductID.
         CLEAR ls_ai_node.
         ls_ai_node-node_id = |{ ls_hierarchy-HierID }|.
-        ls_ai_node-parent_node_id = |{ ls_hierarchy-ParentHierID }|.
+        IF ls_hierarchy-ParentHierID IS NOT INITIAL.
+          ls_ai_node-parent_node_id = |{ ls_hierarchy-ParentHierID }|.
+        ENDIF.
         ls_ai_node-hierarchy_type = ls_hierarchy-HierType.
         ls_ai_node-hierarchy_value = ls_hierarchy-HierValue.
         APPEND ls_ai_node TO ls_ai_hierarchy-nodes.
@@ -90,7 +92,9 @@ CLASS lhc_Product IMPLEMENTATION.
         WHERE ProductID = ls_product-ProductID.
         CLEAR ls_ai_node.
         ls_ai_node-node_id = |{ ls_hierarchy-HierID }|.
-        ls_ai_node-parent_node_id = |{ ls_hierarchy-ParentHierID }|.
+        IF ls_hierarchy-ParentHierID IS NOT INITIAL.
+          ls_ai_node-parent_node_id = |{ ls_hierarchy-ParentHierID }|.
+        ENDIF.
         ls_ai_node-hierarchy_type = ls_hierarchy-HierType.
         ls_ai_node-hierarchy_value = ls_hierarchy-HierValue.
         APPEND ls_ai_node TO ls_ai_hierarchy-nodes.
