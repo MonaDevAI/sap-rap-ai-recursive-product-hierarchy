@@ -33,7 +33,6 @@ CLASS lhc_Product IMPLEMENTATION.
 
       ls_ai_hierarchy-product_id = ls_product-ProductID.
       ls_ai_hierarchy-product_name = ls_product-ProductName.
-      ls_ai_hierarchy-product_type = ls_product-ProductType.
 
       LOOP AT lt_hierarchy INTO DATA(ls_hierarchy)
         WHERE ProductID = ls_product-ProductID.
@@ -86,7 +85,6 @@ CLASS lhc_Product IMPLEMENTATION.
 
       ls_ai_hierarchy-product_id = ls_product-ProductID.
       ls_ai_hierarchy-product_name = ls_product-ProductName.
-      ls_ai_hierarchy-product_type = ls_product-ProductType.
 
       LOOP AT lt_hierarchy INTO DATA(ls_hierarchy)
         WHERE ProductID = ls_product-ProductID.
