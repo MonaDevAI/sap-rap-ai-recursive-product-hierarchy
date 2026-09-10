@@ -50,6 +50,44 @@ flowchart LR
 - `ZR_PRODUCT_RECURSIVE_DEMO` creates demonstration products and three-level
   hierarchies.
 
+### How the CDS hierarchy is recursive
+
+```mermaid
+graph TD
+    PB["ZI_Product_B"] -->|"select from"| PI["ZI_Product_I"]
+    HB["ZI_ProductHierarchy_B"] -->|"select from"| HI["ZI_ProductHierarchy_I"]
+    PI -->|"_Hierarchy composition"| HI
+    HI -->|"_Product association"| PI
+    HI --> PARENT["_Parent association to the same CDS entity"]
+    PARENT --> HI
+    HI --> CHILDREN["_Children association to the same CDS entity"]
+    CHILDREN --> HI
+    PI -->|"projection"| PC["ZC_Product"]
+    HI -->|"projection"| HC["ZC_ProductHierarchy"]
+    PC -->|"redirected _Hierarchy"| HC
+    HC -->|"redirected recursive associations"| NAV["OData V4 navigation"]
+    NAV --> FE["Fiori Elements"]
+```
+
+Each `ZI_ProductHierarchy_I` row represents one hierarchy node. Its
+`ParentHierID` resolves `_Parent` to another row of the same CDS entity, while
+`_Children` performs the inverse match and can return multiple rows. Repeating
+those self-association navigations produces an arbitrary-depth tree:
+
+```mermaid
+graph TD
+    R["Root node"] --> C1["Child node 1"]
+    R --> C2["Child node 2"]
+    C1 --> G1["Grandchild node"]
+    G1 --> D1["Deeper node"]
+```
+
+The CDS model defines the recursive relationships; it does not use a recursive
+SQL CTE or load the entire tree in one request. RAP exposes the same entity type
+at every level, and callers expand or traverse `_Children` and `_Parent` as
+needed. Bounded hierarchy search reconstructs ancestor paths in ABAP from these
+relationships.
+
 ## AI extension
 
 `ZCL_PRODUCT_HIERARCHY_AI` adds:
