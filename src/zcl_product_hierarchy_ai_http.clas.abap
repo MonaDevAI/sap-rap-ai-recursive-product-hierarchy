@@ -20,11 +20,19 @@ CLASS zcl_product_hierarchy_ai_http DEFINITION
         product_name  TYPE string,
         product_type  TYPE string,
         max_depth     TYPE i,
+        query          TYPE string,
+        level          TYPE i,
+        hierarchy_type TYPE string,
+        max_results    TYPE i,
+        use_ai         TYPE abap_bool,
       END OF ty_http_request,
       BEGIN OF ty_http_response,
         success       TYPE abap_bool,
         content       TYPE string,
         review        TYPE zcl_product_hierarchy_ai=>ty_review,
+        candidates     TYPE zcl_product_hierarchy_search=>ty_candidates,
+        search_selection TYPE zcl_product_hierarchy_ai=>ty_search_selection,
+        truncated     TYPE abap_bool,
         error_message TYPE string,
       END OF ty_http_response.
 
@@ -48,6 +56,8 @@ CLASS zcl_product_hierarchy_ai_http IMPLEMENTATION.
     DATA ls_ai_result TYPE zcl_product_hierarchy_ai=>ty_result.
     DATA lv_max_depth TYPE i.
     DATA lv_status TYPE i.
+    DATA lo_search TYPE REF TO zcl_product_hierarchy_search.
+    DATA ls_search_result TYPE zcl_product_hierarchy_search=>ty_search_result.
 
     lv_method = server->request->get_header_field( '~request_method' ).
 
@@ -94,10 +104,11 @@ CLASS zcl_product_hierarchy_ai_http IMPLEMENTATION.
 
     IF ls_request-operation <> 'VALIDATE_HIERARCHY'
         AND ls_request-operation <> 'REVIEW_HIERARCHY'
-        AND ls_request-operation <> 'GENERATE_HIERARCHY'.
+        AND ls_request-operation <> 'GENERATE_HIERARCHY'
+        AND ls_request-operation <> 'SEARCH_HIERARCHY'.
       CLEAR ls_response.
       ls_response-error_message =
-        'Operation must be VALIDATE_HIERARCHY, REVIEW_HIERARCHY, or GENERATE_HIERARCHY.'.
+        'Unsupported hierarchy operation.'.
       send_response(
         io_server = server
         iv_status = 400
@@ -135,6 +146,50 @@ CLASS zcl_product_hierarchy_ai_http IMPLEMENTATION.
           iv_product_name = ls_request-product_name
           iv_product_type = ls_request-product_type
           iv_max_depth    = lv_max_depth ).
+      WHEN 'SEARCH_HIERARCHY'.
+        CREATE OBJECT lo_search.
+        ls_search_result = lo_search->search(
+          iv_query          = ls_request-query
+          iv_level          = ls_request-level
+          iv_product_type   = ls_request-product_type
+          iv_hierarchy_type = ls_request-hierarchy_type
+          iv_max_results    = ls_request-max_results ).
+
+        CLEAR ls_response.
+        ls_response-candidates = ls_search_result-candidates.
+        ls_response-truncated = ls_search_result-truncated.
+
+        IF ls_search_result-success <> abap_true.
+          ls_response-error_message = ls_search_result-error_message.
+          lv_status = ls_search_result-status_code.
+        ELSEIF ls_request-use_ai = abap_true.
+          ls_ai_result = lo_ai->rank_search_candidates(
+            iv_query      = ls_request-query
+            it_candidates = ls_search_result-candidates ).
+          ls_response-success = ls_ai_result-success.
+          ls_response-content = ls_ai_result-content.
+          ls_response-search_selection =
+            ls_ai_result-search_selection.
+          ls_response-error_message = ls_ai_result-error_message.
+          lv_status = ls_ai_result-status_code.
+        ELSE.
+          DATA(lv_candidate_count) =
+            lines( ls_search_result-candidates ).
+          ls_response-success = abap_true.
+          ls_response-content =
+            |Retrieved { lv_candidate_count } hierarchy candidates in ABAP.|.
+          lv_status = 200.
+        ENDIF.
+
+        IF lv_status IS INITIAL.
+          lv_status = 500.
+        ENDIF.
+
+        send_response(
+          io_server = server
+          iv_status = lv_status
+          is_response = ls_response ).
+        RETURN.
     ENDCASE.
 
     lv_status = ls_ai_result-status_code.
@@ -146,6 +201,7 @@ CLASS zcl_product_hierarchy_ai_http IMPLEMENTATION.
     ls_response-success = ls_ai_result-success.
     ls_response-content = ls_ai_result-content.
     ls_response-review = ls_ai_result-review.
+    ls_response-search_selection = ls_ai_result-search_selection.
     ls_response-error_message = ls_ai_result-error_message.
 
     send_response(

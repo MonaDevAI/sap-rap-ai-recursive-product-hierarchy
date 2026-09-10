@@ -3,6 +3,10 @@
 The AI extension combines deterministic recursive-graph validation with
 optional model assistance.
 
+Hierarchy retrieval remains in ABAP. The model receives only the bounded
+candidate data selected by the search service and cannot issue SQL or choose a
+CDS view.
+
 ## Deterministic behavior
 
 `ZCL_PRODUCT_HIERARCHY_AI->VALIDATE_STRUCTURE` checks:
@@ -210,6 +214,71 @@ review:
 
 Invalid input or graph structure returns HTTP `422`. Transport, gateway, or
 provider-response failures return HTTP `502`.
+
+### Search hierarchy data at any level
+
+Use `SEARCH_HIERARCHY` to retrieve hierarchy data in ABAP:
+
+```json
+{
+  "operation": "SEARCH_HIERARCHY",
+  "query": "gaming",
+  "level": 0,
+  "productType": "ELECTRONICS",
+  "hierarchyType": "",
+  "maxResults": 10,
+  "useAi": false
+}
+```
+
+`level` is one-based. Use `0` to search every level. `maxResults` must be
+between 1 and 50 and defaults to 20.
+
+The response includes complete paths reconstructed from parent references:
+
+```json
+{
+  "success": true,
+  "content": "Retrieved 2 hierarchy candidates in ABAP.",
+  "candidates": [
+    {
+      "productId": "PROD_GAMING_LAPTOP",
+      "productName": "Gaming Laptop",
+      "productType": "ELECTRONICS",
+      "nodeId": "LAPTOPS",
+      "parentNodeId": "COMPUTERS",
+      "hierarchyType": "L3",
+      "hierarchyValue": "Laptops",
+      "hierarchyLevel": 3,
+      "hierarchyPath": "Electronics > Computers > Laptops"
+    }
+  ],
+  "truncated": false
+}
+```
+
+Set `useAi` to `true` to rank the ABAP-retrieved candidates. The model must
+return an exact product and node ID from the candidate list:
+
+```json
+{
+  "hasSelection": true,
+  "selectedProductId": "PROD_GAMING_LAPTOP",
+  "selectedNodeId": "LAPTOPS",
+  "reason": "This candidate most closely matches the requested gaming laptop classification.",
+  "confidence": "high",
+  "requiresHumanReview": true
+}
+```
+
+The response exposes that object as `searchSelection`. IDs outside the
+ABAP-retrieved result set are rejected with HTTP `502`.
+
+The proof-of-concept CDS views currently declare
+`@AccessControl.authorizationCheck: #NOT_REQUIRED`. Before using cross-product
+search outside a demonstration system, replace that posture with the target
+system's approved DCL and authorization design. AI ranking does not add or
+bypass data authorization.
 
 ## Fiori elements actions
 

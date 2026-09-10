@@ -29,10 +29,19 @@ CLASS zcl_product_hierarchy_ai DEFINITION
         confidence               TYPE string,
         requires_human_review    TYPE abap_bool,
       END OF ty_review,
+      BEGIN OF ty_search_selection,
+        has_selection         TYPE abap_bool,
+        selected_product_id   TYPE string,
+        selected_node_id      TYPE string,
+        reason                TYPE string,
+        confidence            TYPE string,
+        requires_human_review TYPE abap_bool,
+      END OF ty_search_selection,
       BEGIN OF ty_result,
         success       TYPE abap_bool,
         content       TYPE string,
         review        TYPE ty_review,
+        search_selection TYPE ty_search_selection,
         error_message TYPE string,
         status_code   TYPE i,
       END OF ty_result.
@@ -67,6 +76,13 @@ CLASS zcl_product_hierarchy_ai DEFINITION
         iv_max_depth     TYPE i DEFAULT 3
       RETURNING
         VALUE(rs_result) TYPE ty_result.
+
+    METHODS rank_search_candidates
+      IMPORTING
+        iv_query          TYPE string
+        it_candidates     TYPE zcl_product_hierarchy_search=>ty_candidates
+      RETURNING
+        VALUE(rs_result)  TYPE ty_result.
 
   PRIVATE SECTION.
     TYPES:
@@ -283,6 +299,125 @@ CLASS zcl_product_hierarchy_ai IMPLEMENTATION.
     rs_result = call_model(
       iv_system_prompt = lv_system_prompt
       iv_user_prompt   = lv_user_prompt ).
+  ENDMETHOD.
+
+  METHOD rank_search_candidates.
+    IF iv_query IS INITIAL.
+      rs_result-error_message = 'A search query is required for AI ranking.'.
+      rs_result-status_code = 400.
+      RETURN.
+    ENDIF.
+
+    IF it_candidates IS INITIAL.
+      rs_result-success = abap_true.
+      rs_result-content = 'No hierarchy candidates were available for AI ranking.'.
+      rs_result-status_code = 200.
+      RETURN.
+    ENDIF.
+
+    DATA(lv_system_prompt) =
+      `Rank ABAP-retrieved SAP product hierarchy search candidates for the user query. ` &&
+      `Return exactly one compact JSON object without Markdown or code fences. ` &&
+      `Use keys hasSelection, selectedProductId, selectedNodeId, reason, confidence, and requiresHumanReview. ` &&
+      `When a relevant candidate exists, copy its productId and nodeId exactly, explain the match in no more than ` &&
+      `300 characters, set confidence to low, medium, or high, and set requiresHumanReview true. ` &&
+      `When no candidate is relevant, set hasSelection false, use empty IDs, explain why, and set ` &&
+      `requiresHumanReview false. Never invent an ID, candidate, hierarchy path, or business rule.`.
+
+    DATA(lv_candidates_json) = /ui2/cl_json=>serialize(
+      data        = it_candidates
+      compress    = abap_true
+      pretty_name = /ui2/cl_json=>pretty_mode-camel_case ).
+
+    DATA(lv_user_prompt) =
+      |Search query: { iv_query }\nAuthorized candidates: { lv_candidates_json }|.
+
+    DATA(ls_model_result) = call_model(
+      iv_system_prompt = lv_system_prompt
+      iv_user_prompt   = lv_user_prompt ).
+
+    IF ls_model_result-success <> abap_true.
+      rs_result = ls_model_result.
+      RETURN.
+    ENDIF.
+
+    DATA ls_selection TYPE ty_search_selection.
+    /ui2/cl_json=>deserialize(
+      EXPORTING
+        json        = ls_model_result-content
+        pretty_name = /ui2/cl_json=>pretty_mode-camel_case
+      CHANGING
+        data        = ls_selection ).
+
+    TRANSLATE ls_selection-confidence TO LOWER CASE.
+
+    IF ls_selection-reason IS INITIAL
+        OR strlen( ls_selection-reason ) > 300.
+      rs_result-error_message =
+        'AI search reason is required and must not exceed 300 characters.'.
+      rs_result-status_code = 502.
+      RETURN.
+    ENDIF.
+
+    IF ls_selection-confidence <> 'low'
+        AND ls_selection-confidence <> 'medium'
+        AND ls_selection-confidence <> 'high'.
+      rs_result-error_message =
+        'AI search confidence must be low, medium, or high.'.
+      rs_result-status_code = 502.
+      RETURN.
+    ENDIF.
+
+    IF ls_selection-has_selection = abap_true.
+      IF ls_selection-selected_product_id IS INITIAL
+          OR ls_selection-selected_node_id IS INITIAL.
+        rs_result-error_message =
+          'AI search selection requires product and node IDs.'.
+        rs_result-status_code = 502.
+        RETURN.
+      ENDIF.
+
+      READ TABLE it_candidates
+        WITH KEY product_id = ls_selection-selected_product_id
+                 node_id = ls_selection-selected_node_id
+        INTO DATA(ls_selected_candidate).
+      IF sy-subrc <> 0.
+        rs_result-error_message =
+          'AI search selected a candidate outside the ABAP result set.'.
+        rs_result-status_code = 502.
+        RETURN.
+      ENDIF.
+
+      IF ls_selection-requires_human_review <> abap_true.
+        rs_result-error_message =
+          'AI search selections must require explicit human review.'.
+        rs_result-status_code = 502.
+        RETURN.
+      ENDIF.
+
+      rs_result-content =
+        |AI selected { ls_selected_candidate-hierarchy_path } | &&
+        |({ ls_selected_candidate-product_id }/{ ls_selected_candidate-node_id }). | &&
+        |{ ls_selection-reason } Confidence: { ls_selection-confidence }. | &&
+        |Human review required.|.
+    ELSE.
+      IF ls_selection-selected_product_id IS NOT INITIAL
+          OR ls_selection-selected_node_id IS NOT INITIAL
+          OR ls_selection-requires_human_review = abap_true.
+        rs_result-error_message =
+          'AI search without a selection must use empty IDs.'.
+        rs_result-status_code = 502.
+        RETURN.
+      ENDIF.
+
+      rs_result-content =
+        |AI found no relevant candidate. { ls_selection-reason } | &&
+        |Confidence: { ls_selection-confidence }.|.
+    ENDIF.
+
+    rs_result-success = abap_true.
+    rs_result-search_selection = ls_selection.
+    rs_result-status_code = 200.
   ENDMETHOD.
 
   METHOD hierarchy_as_json.

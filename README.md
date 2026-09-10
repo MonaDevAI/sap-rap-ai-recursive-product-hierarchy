@@ -59,6 +59,8 @@ flowchart LR
 - Structured advisory model review after deterministic validation succeeds
 - Grounded concern details including affected node, current parent, optional
   suggested parent, reason, confidence band, and required human review
+- ABAP-controlled hierarchy search across all levels or a requested level
+- Optional AI ranking restricted to hierarchy candidates retrieved by ABAP
 - Generated hierarchy suggestions returned as JSON for user review
 
 `ZCL_PRODUCT_HIERARCHY_AI_HTTP` provides an authenticated JSON API using
@@ -74,6 +76,12 @@ responses that report no semantic concern remain informational.
 
 See [docs/AI_HIERARCHY.md](docs/AI_HIERARCHY.md) for configuration and request
 examples.
+
+The HTTP interface also supports `SEARCH_HIERARCHY`. ABAP retrieves a bounded
+candidate set from the CDS hierarchy, reconstructs complete paths, and applies
+optional level, product-type, and hierarchy-type filters. When AI ranking is
+requested, the model may select only a product/node pair from that retrieved
+set; ABAP rejects invented selections.
 
 ## Enterprise patterns demonstrated
 
