@@ -18,9 +18,21 @@ CLASS zcl_product_hierarchy_ai DEFINITION
         product_type TYPE string,
         nodes        TYPE ty_nodes,
       END OF ty_hierarchy,
+      BEGIN OF ty_review,
+        has_concern              TYPE abap_bool,
+        issue_type               TYPE string,
+        node_id                  TYPE string,
+        current_parent_node_id   TYPE string,
+        has_parent_suggestion    TYPE abap_bool,
+        suggested_parent_node_id TYPE string,
+        reason                   TYPE string,
+        confidence               TYPE string,
+        requires_human_review    TYPE abap_bool,
+      END OF ty_review,
       BEGIN OF ty_result,
         success       TYPE abap_bool,
         content       TYPE string,
+        review        TYPE ty_review,
         error_message TYPE string,
         status_code   TYPE i,
       END OF ty_result.
@@ -90,6 +102,13 @@ CLASS zcl_product_hierarchy_ai DEFINITION
         is_hierarchy    TYPE ty_hierarchy
       RETURNING
         VALUE(rv_json)  TYPE string.
+
+    METHODS parse_review_response
+      IMPORTING
+        iv_content       TYPE string
+        is_hierarchy     TYPE ty_hierarchy
+      RETURNING
+        VALUE(rs_result) TYPE ty_result.
 
     METHODS escape_json
       IMPORTING
@@ -206,16 +225,34 @@ CLASS zcl_product_hierarchy_ai IMPLEMENTATION.
     ENDIF.
 
     DATA(lv_system_prompt) =
-      `Review a recursive SAP product hierarchy. Return plain text without Markdown, headings, or lists. ` &&
-      `Keep the complete response under 500 characters. ` &&
-      `Identify unclear labels, inconsistent hierarchy types, unusual parent-child relationships, ` &&
-      `and likely missing business context. Do not approve, persist, or modify data.`.
+      `Review a recursive SAP product hierarchy for semantic concerns after deterministic validation has passed. ` &&
+      `Return exactly one compact JSON object without Markdown or code fences. ` &&
+      `Use keys hasConcern, issueType, nodeId, currentParentNodeId, hasParentSuggestion, suggestedParentNodeId, ` &&
+      `reason, confidence, and requiresHumanReview. issueType must be none, unclear_label, inconsistent_type, ` &&
+      `unusual_relationship, or missing_context. confidence must be low, medium, or high. ` &&
+      `When hasConcern is true, nodeId must reference an input node, currentParentNodeId must match its input parent, ` &&
+      `and requiresHumanReview must be true. Set hasParentSuggestion true only when recommending a parent change; ` &&
+      `then suggestedParentNodeId must reference another input node or be empty to recommend the root. Set it false ` &&
+      `with an empty suggestedParentNodeId when no parent change is recommended. An unusual_relationship concern ` &&
+      `must include a parent suggestion. reason must be under 300 characters. When no concern exists, use issueType ` &&
+      `none, empty node and parent IDs, hasParentSuggestion false, a concise reason, and requiresHumanReview false. ` &&
+      `Identify at most one highest-value concern. ` &&
+      `Do not approve, persist, modify data, invent nodes, or invent company policy.`.
 
     DATA(lv_user_prompt) = hierarchy_as_json( is_hierarchy ).
 
-    rs_result = call_model(
+    DATA(ls_model_result) = call_model(
       iv_system_prompt = lv_system_prompt
       iv_user_prompt   = lv_user_prompt ).
+
+    IF ls_model_result-success <> abap_true.
+      rs_result = ls_model_result.
+      RETURN.
+    ENDIF.
+
+    rs_result = parse_review_response(
+      iv_content   = ls_model_result-content
+      is_hierarchy = is_hierarchy ).
   ENDMETHOD.
 
   METHOD generate_hierarchy.
@@ -270,6 +307,192 @@ CLASS zcl_product_hierarchy_ai IMPLEMENTATION.
     ENDLOOP.
 
     rv_json = rv_json && ']}'.
+  ENDMETHOD.
+
+  METHOD parse_review_response.
+    DATA ls_review TYPE ty_review.
+
+    IF iv_content IS INITIAL.
+      rs_result-error_message = 'AI review returned an empty response.'.
+      rs_result-status_code = 502.
+      RETURN.
+    ENDIF.
+
+    /ui2/cl_json=>deserialize(
+      EXPORTING
+        json        = iv_content
+        pretty_name = /ui2/cl_json=>pretty_mode-camel_case
+      CHANGING
+        data        = ls_review ).
+
+    TRANSLATE ls_review-issue_type TO LOWER CASE.
+    TRANSLATE ls_review-confidence TO LOWER CASE.
+
+    IF ls_review-reason IS INITIAL OR strlen( ls_review-reason ) > 300.
+      rs_result-error_message =
+        'AI review reason is required and must not exceed 300 characters.'.
+      rs_result-status_code = 502.
+      RETURN.
+    ENDIF.
+
+    IF ls_review-confidence <> 'low'
+        AND ls_review-confidence <> 'medium'
+        AND ls_review-confidence <> 'high'.
+      rs_result-error_message =
+        'AI review confidence must be low, medium, or high.'.
+      rs_result-status_code = 502.
+      RETURN.
+    ENDIF.
+
+    IF ls_review-has_concern = abap_true.
+      IF ls_review-issue_type <> 'unclear_label'
+          AND ls_review-issue_type <> 'inconsistent_type'
+          AND ls_review-issue_type <> 'unusual_relationship'
+          AND ls_review-issue_type <> 'missing_context'.
+        rs_result-error_message = 'AI review returned an unsupported concern type.'.
+        rs_result-status_code = 502.
+        RETURN.
+      ENDIF.
+
+      IF ls_review-node_id IS INITIAL.
+        rs_result-error_message = 'AI review concern requires a hierarchy node ID.'.
+        rs_result-status_code = 502.
+        RETURN.
+      ENDIF.
+
+      READ TABLE is_hierarchy-nodes
+        WITH KEY node_id = ls_review-node_id
+        INTO DATA(ls_reviewed_node).
+      IF sy-subrc <> 0.
+        rs_result-error_message =
+          |AI review referenced unknown node { ls_review-node_id }.|.
+        rs_result-status_code = 502.
+        RETURN.
+      ENDIF.
+
+      IF ls_review-current_parent_node_id <> ls_reviewed_node-parent_node_id.
+        rs_result-error_message =
+          |AI review returned an incorrect current parent for node { ls_review-node_id }.|.
+        rs_result-status_code = 502.
+        RETURN.
+      ENDIF.
+
+      IF ls_review-issue_type = 'unusual_relationship'
+          AND ls_review-has_parent_suggestion <> abap_true.
+        rs_result-error_message =
+          'An unusual relationship concern requires a parent suggestion.'.
+        rs_result-status_code = 502.
+        RETURN.
+      ENDIF.
+
+      IF ls_review-has_parent_suggestion = abap_true.
+        IF ls_review-suggested_parent_node_id = ls_review-node_id.
+          rs_result-error_message = 'AI review cannot suggest a node as its own parent.'.
+          rs_result-status_code = 502.
+          RETURN.
+        ENDIF.
+
+        IF ls_review-suggested_parent_node_id =
+            ls_review-current_parent_node_id.
+          rs_result-error_message =
+            'AI review parent suggestion must change the current relationship.'.
+          rs_result-status_code = 502.
+          RETURN.
+        ENDIF.
+
+        IF ls_review-suggested_parent_node_id IS NOT INITIAL.
+          READ TABLE is_hierarchy-nodes
+            WITH KEY node_id = ls_review-suggested_parent_node_id
+            TRANSPORTING NO FIELDS.
+          IF sy-subrc <> 0.
+            rs_result-error_message =
+              |AI review suggested unknown parent { ls_review-suggested_parent_node_id }.|.
+            rs_result-status_code = 502.
+            RETURN.
+          ENDIF.
+
+          DATA(lv_candidate_parent_id) =
+            ls_review-suggested_parent_node_id.
+          WHILE lv_candidate_parent_id IS NOT INITIAL.
+            IF lv_candidate_parent_id = ls_review-node_id.
+              rs_result-error_message =
+                'AI review parent suggestion would create a recursive cycle.'.
+              rs_result-status_code = 502.
+              RETURN.
+            ENDIF.
+
+            READ TABLE is_hierarchy-nodes
+              WITH KEY node_id = lv_candidate_parent_id
+              INTO DATA(ls_candidate_parent).
+            IF sy-subrc <> 0.
+              EXIT.
+            ENDIF.
+
+            lv_candidate_parent_id = ls_candidate_parent-parent_node_id.
+          ENDWHILE.
+        ENDIF.
+      ELSEIF ls_review-suggested_parent_node_id IS NOT INITIAL.
+        rs_result-error_message =
+          'AI review returned a parent without marking it as a suggestion.'.
+        rs_result-status_code = 502.
+        RETURN.
+      ENDIF.
+
+      IF ls_review-requires_human_review <> abap_true.
+        rs_result-error_message =
+          'AI concerns must require explicit human review.'.
+        rs_result-status_code = 502.
+        RETURN.
+      ENDIF.
+
+      DATA(lv_current_parent) = ls_review-current_parent_node_id.
+      IF lv_current_parent IS INITIAL.
+        lv_current_parent = '<root>'.
+      ENDIF.
+
+      rs_result-content =
+        |AI concern { ls_review-issue_type } for node { ls_review-node_id }: | &&
+        |current parent { lv_current_parent }. |.
+
+      IF ls_review-has_parent_suggestion = abap_true.
+        DATA(lv_suggested_parent) = ls_review-suggested_parent_node_id.
+        IF lv_suggested_parent IS INITIAL.
+          lv_suggested_parent = '<root>'.
+        ENDIF.
+        rs_result-content =
+          rs_result-content &&
+          |Suggested parent { lv_suggested_parent }. |.
+      ELSE.
+        rs_result-content =
+          rs_result-content &&
+          |No parent change suggested. |.
+      ENDIF.
+
+      rs_result-content =
+        rs_result-content &&
+        |{ ls_review-reason } Confidence: { ls_review-confidence }. | &&
+        |Human review required.|.
+    ELSE.
+      IF ls_review-issue_type <> 'none'
+          OR ls_review-node_id IS NOT INITIAL
+          OR ls_review-current_parent_node_id IS NOT INITIAL
+          OR ls_review-has_parent_suggestion = abap_true
+          OR ls_review-suggested_parent_node_id IS NOT INITIAL
+          OR ls_review-requires_human_review = abap_true.
+        rs_result-error_message =
+          'AI review without a concern must use type none and empty node fields.'.
+        rs_result-status_code = 502.
+        RETURN.
+      ENDIF.
+
+      rs_result-content =
+        |AI review found no semantic concern. { ls_review-reason } | &&
+        |Confidence: { ls_review-confidence }.|.
+    ENDIF.
+
+    rs_result-success = abap_true.
+    rs_result-review = ls_review.
+    rs_result-status_code = 200.
   ENDMETHOD.
 
   METHOD call_model.

@@ -19,12 +19,45 @@ These checks do not require an AI service and remain authoritative.
 ## AI behavior
 
 - `REVIEW_WITH_AI` runs deterministic validation first and then requests
-  advisory feedback about labels, types, and parent-child relationships.
+  one structured advisory finding about labels, types, parent-child
+  relationships, or missing business context.
 - `GENERATE_HIERARCHY` requests a JSON hierarchy suggestion with a bounded
   depth. It does not write to RAP tables or activate a draft.
 
 Generated data must be parsed, validated again, displayed to a user, and
 explicitly accepted before persistence.
+
+### Structured review contract
+
+The review prompt requires exactly one JSON object:
+
+```json
+{
+  "hasConcern": true,
+  "issueType": "unusual_relationship",
+  "nodeId": "GAMING_LAPTOP",
+  "currentParentNodeId": "OFFICE_CHAIRS",
+  "hasParentSuggestion": true,
+  "suggestedParentNodeId": "LAPTOPS",
+  "reason": "A gaming laptop is a computer product rather than office furniture.",
+  "confidence": "high",
+  "requiresHumanReview": true
+}
+```
+
+The ABAP implementation rejects the model response unless:
+
+- The concern type and confidence use supported values
+- The affected node exists in the submitted hierarchy
+- The current parent matches the submitted hierarchy
+- A parent suggestion changes the current relationship
+- The suggested parent exists or represents the root
+- The suggested relationship cannot create a recursive cycle
+- The reason is present and no longer than 300 characters
+- Every concern explicitly requires human review
+
+This grounding prevents an AI response from presenting invented nodes or an
+incorrect current relationship as a valid recommendation.
 
 ## Outbound configuration
 
@@ -141,6 +174,28 @@ credentials from callers.
 
 Use `REVIEW_HIERARCHY` with the same payload to request AI feedback.
 
+A successful review response includes both display text and the structured
+review:
+
+```json
+{
+  "success": true,
+  "content": "AI concern unusual_relationship for node GAMING_LAPTOP...",
+  "review": {
+    "hasConcern": true,
+    "issueType": "unusual_relationship",
+    "nodeId": "GAMING_LAPTOP",
+    "currentParentNodeId": "OFFICE_CHAIRS",
+    "hasParentSuggestion": true,
+    "suggestedParentNodeId": "LAPTOPS",
+    "reason": "A gaming laptop is a computer product rather than office furniture.",
+    "confidence": "high",
+    "requiresHumanReview": true
+  },
+  "errorMessage": ""
+}
+```
+
 ### Generate a hierarchy suggestion
 
 ```json
@@ -163,12 +218,14 @@ The product list report and object page expose two instance actions:
 - **Validate Hierarchy** runs deterministic recursive validation and requires
   no AI connection.
 - **Review with AI** validates first, then calls the configured AI endpoint and
-  displays the advisory response through the standard Fiori message handling.
+  validates the structured response against the submitted hierarchy, and
+  displays the advisory result through standard Fiori message handling.
 
 RAP free-text messages are limited to approximately 50 characters each. The
-implementation requests a plain-text response of at most 500 characters and
+implementation formats the validated review into bounded display text and
 splits it into ordered message-popover entries so the complete review remains
-visible.
+visible. A semantic concern is shown as a warning; a valid no-concern response
+is informational.
 
 Neither action persists generated content or activates a draft. Select a
 product before invoking an action from the list report. The actions read the

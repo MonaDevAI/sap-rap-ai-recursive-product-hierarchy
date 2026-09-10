@@ -24,6 +24,7 @@ CLASS zcl_product_hierarchy_ai_http DEFINITION
       BEGIN OF ty_http_response,
         success       TYPE abap_bool,
         content       TYPE string,
+        review        TYPE zcl_product_hierarchy_ai=>ty_review,
         error_message TYPE string,
       END OF ty_http_response.
 
@@ -144,6 +145,7 @@ CLASS zcl_product_hierarchy_ai_http IMPLEMENTATION.
     CLEAR ls_response.
     ls_response-success = ls_ai_result-success.
     ls_response-content = ls_ai_result-content.
+    ls_response-review = ls_ai_result-review.
     ls_response-error_message = ls_ai_result-error_message.
 
     send_response(

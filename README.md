@@ -56,7 +56,9 @@ flowchart LR
 
 - Deterministic checks for required fields, duplicate node IDs, missing parent
   references, self-parenting, and recursive cycles
-- Advisory model review after deterministic validation succeeds
+- Structured advisory model review after deterministic validation succeeds
+- Grounded concern details including affected node, current parent, optional
+  suggested parent, reason, confidence band, and required human review
 - Generated hierarchy suggestions returned as JSON for user review
 
 `ZCL_PRODUCT_HIERARCHY_AI_HTTP` provides an authenticated JSON API using
@@ -67,7 +69,8 @@ Controlled ABAP callers can alternatively provide an HTTPS URL template,
 deployment, model, and runtime-only API key directly to the AI class.
 
 The Fiori elements product list and object page expose **Validate Hierarchy**
-and **Review with AI** instance-action buttons.
+and **Review with AI** instance-action buttons. AI concerns appear as warnings;
+responses that report no semantic concern remain informational.
 
 See [docs/AI_HIERARCHY.md](docs/AI_HIERARCHY.md) for configuration and request
 examples.

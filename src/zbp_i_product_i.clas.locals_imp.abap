@@ -33,6 +33,7 @@ CLASS lhc_Product IMPLEMENTATION.
 
       ls_ai_hierarchy-product_id = ls_product-ProductID.
       ls_ai_hierarchy-product_name = ls_product-ProductName.
+      ls_ai_hierarchy-product_type = ls_product-ProductType.
 
       LOOP AT lt_hierarchy INTO DATA(ls_hierarchy)
         WHERE ProductID = ls_product-ProductID.
@@ -87,6 +88,7 @@ CLASS lhc_Product IMPLEMENTATION.
 
       ls_ai_hierarchy-product_id = ls_product-ProductID.
       ls_ai_hierarchy-product_name = ls_product-ProductName.
+      ls_ai_hierarchy-product_type = ls_product-ProductType.
 
       LOOP AT lt_hierarchy INTO DATA(ls_hierarchy)
         WHERE ProductID = ls_product-ProductID.
@@ -112,6 +114,8 @@ CLASS lhc_Product IMPLEMENTATION.
       IF ls_ai_result-success <> abap_true.
         lv_severity = if_abap_behv_message=>severity-error.
         lv_message = ls_ai_result-error_message.
+      ELSEIF ls_ai_result-review-has_concern = abap_true.
+        lv_severity = if_abap_behv_message=>severity-warning.
       ENDIF.
 
       REPLACE ALL OCCURRENCES OF cl_abap_char_utilities=>cr_lf
