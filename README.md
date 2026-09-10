@@ -12,14 +12,14 @@ governance scenarios.
 ## Architecture
 
 ```mermaid
-flowchart TD
-    UI[SAP Fiori Elements] --> BO[SAP RAP Business Object]
-    BO --> HE[Recursive Hierarchy Engine]
-    BO --> AV[AI-Assisted Validation]
-    HE --> DT[Active and Draft Tables]
-    AV --> HTTP[Authenticated HTTP Integration]
-    HTTP --> AI[External AI Service]
-    DT --> PH[Product Hierarchy]
+graph TD
+    UI["SAP Fiori Elements"] --> BO["SAP RAP Business Object"]
+    BO --> HE["Recursive Hierarchy Engine"]
+    BO --> AV["AI-Assisted Validation"]
+    HE --> DT["Active and Draft Tables"]
+    AV --> HTTP["Authenticated HTTP Integration"]
+    HTTP --> AI["External AI Service"]
+    DT --> PH["Product Hierarchy"]
     AI --> PH
 ```
 
@@ -30,13 +30,13 @@ and advisory; it runs only after deterministic hierarchy checks succeed.
 ## Demo flow
 
 ```mermaid
-flowchart LR
-    A[Create Product] --> B[Add Hierarchy Nodes]
-    B --> C[Request AI Review]
-    C --> D[Review Suggested Parent]
-    D --> E[Save Draft]
-    E --> F[Activate]
-    F --> G[Hierarchy Updated]
+graph LR
+    A["Create Product"] --> B["Add Hierarchy Nodes"]
+    B --> C["Request AI Review"]
+    C --> D["Review Suggested Parent"]
+    D --> E["Save Draft"]
+    E --> F["Activate"]
+    F --> G["Hierarchy Updated"]
 ```
 
 ## Core RAP model
